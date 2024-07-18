@@ -1,0 +1,29 @@
+services:
+  virtual-ccf:
+    image: ${REGISTRY:-local}/ccf/virtual:${TAG:-latest}
+    network_mode: "host"
+    volumes:
+      - ${CERTS_DIR:-.}:/app/certs
+      - ${CCHOST_CONFIG:-.}:/app/cchost_config.json
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - CCF_PLATFORM=virtual
+        - CCF_VERSION=5.0.0-dev10
+  snp-ccf:
+    image: ${REGISTRY:-local}/ccf/snp:${TAG:-latest}
+    volumes:
+      - ${CERTS_DIR:-.}:/mnt/certs
+      - ${CCHOST_CONFIG:-.}:/mnt/cchost_config.json
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - CCF_PLATFORM=snp
+        - CCF_VERSION=5.0.0-dev10
+  keygenerator:
+    image: mcr.microsoft.com/ccf/app/dev:5.0.0-dev10-virtual
+    volumes:
+      - ${CERTS_DIR:-.}:/certs
+    command: /bin/bash -c "cd /certs && /opt/ccf_virtual/bin/keygenerator.sh --name ${NAME:-.} --gen-enc-key"
