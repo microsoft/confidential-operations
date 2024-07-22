@@ -16,6 +16,17 @@ following targets:
   - `conf_ops.proposal_submit`
   - `conf_ops.js_app_set`
 
+## Getting Started
+
+### Install the `conf_ops` package
+
+```
+latest=$(gh release list -R microsoft/confidential-operations -L 1 --json tagName --jq '.[0].tagName')
+gh release download $latest -R microsoft/confidential-operations
+pip install conf_ops*.tar.gz
+rm conf_ops*.tar.gz
+```
+
 ## Starting a Minimal CCF Service
 
 We interact with CCF via identities such as members or users.
