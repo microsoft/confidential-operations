@@ -78,7 +78,7 @@ python -m conf_ops.member_activate --participant-name member0
 
 Then the service is ready to be opened:
 ```
-python -m conf_ops.service_open
+python -m conf_ops.service_open --participant-name member0
 ```
 
 ## Updating the Constitution
