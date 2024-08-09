@@ -32,11 +32,11 @@ def service_deploy(args: Namespace) -> str:
             "docker", "compose",
             "-f", os.path.join(__file__, "..", "docker", "docker-compose.yml"),
             "run", "--build", "-d", "snp-ccf", "/bin/bash", "-c",
-            "\"cp -r /tmp/certs /app/certs && cp /tmp/cchost_config.json /app/cchost_config.json && sleep infinity\"",
+            "\"cp -r /mnt/certs /app/certs && cp /mnt/cchost_config.json /app/cchost_config.json && sleep infinity\"",
         ]), env={
             "CCHOST_CONFIG": f.name,
             "CERTS_DIR": args.certs_dir,
-        }, check=True, shell=True, stdout=subprocess.PIPE)
+        }, check=True, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         node_container_id = response.stdout.decode("utf-8").strip("\n").split("\n")[-1]
 
@@ -56,14 +56,18 @@ def service_deploy(args: Namespace) -> str:
     bicep_param_set(param_file_path, "location", f"'{args.location}'")
     bicep_param_set(param_file_path, "managedIDName", f"'{args.managed_id_name}'")
 
-    subprocess.run([
+    res = subprocess.run([
         "az", "deployment", "group", "create",
 	    "--name", args.deployment_name,
 	    "--resource-group", args.resource_group,
 	    "--template-file", os.path.abspath(os.path.join(__file__, "..", "bicep/ccf.bicep")),
 	    "--parameters", param_file_path,
         "--query", "properties.outputs.nodeAddress.value",
-    ], check=True)
+    ], check=True, stdout=subprocess.PIPE)
+
+    return res.stdout.decode("utf-8").replace("\n", "").strip('"')
 
 if __name__ == "__main__":
-    print(service_deploy(args_parse()))
+    node_url = service_deploy(args_parse())
+    print("Service deployed, run:")
+    print(f"export NODE_ADDRESS={node_url}:8000")
