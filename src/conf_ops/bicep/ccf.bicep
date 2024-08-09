@@ -67,4 +67,4 @@ resource ccfNode 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = {
   }
 }
 
-output nodeAddress string = '${nodeId}${location}.azurecontainer.io'
+output nodeAddress string = '${nodeId}.${location}.azurecontainer.io'
