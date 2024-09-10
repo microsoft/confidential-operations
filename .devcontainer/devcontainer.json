@@ -2,9 +2,9 @@
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.222.0/containers/python-3-miniconda
 {
 	"name": "Python Environment",
-	"build": {
-		"dockerfile": "Dockerfile",
-		"context": ".."
+	"image": "mcr.microsoft.com/devcontainers/universal:focal",
+	"features": {
+		"ghcr.io/devcontainers/features/azure-cli:1": {}
 	},
 	"customizations": {
 		"vscode": {
@@ -39,6 +39,5 @@
 				]
 			}
 		}
-	},
-	"onCreateCommand": "pre-commit install-hooks"
+	}
 }
