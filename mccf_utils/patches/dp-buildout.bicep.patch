@@ -1,0 +1,172 @@
+diff --git a/Ev2Files/accl-dataplane/Bicep/dp-buildout.bicep b/Ev2Files/accl-dataplane/Bicep/dp-buildout.bicep
+index 015a53c05..95343e14c 100644
+--- a/Ev2Files/accl-dataplane/Bicep/dp-buildout.bicep
++++ b/Ev2Files/accl-dataplane/Bicep/dp-buildout.bicep
+@@ -3,7 +3,6 @@
+ // Tenant shared resource names
+ param DP_PRIMARY_COSMOS_ACCOUNT_NAME string
+ param DP_PRIMARY_COSMOS_DB_RESOURCEGROUP_NAME string = 'ConfidentialLedgerRG'
+-param CCF_SHARED_KV string
+ param MAIN_DATAPLANE_ACR string
+ param CONTROLPLANE_RG string
+ param LOCATION string
+@@ -44,26 +43,21 @@ param IsNewRegion bool
+ var resourceSuffix = '-${ENVIRONMENT}-${LOCATION_SHORT_NAME}'
+ 
+ // If IsNewRegion, use the new naming convention. Otherwise, use existing resource names
+-var ccfUamiName = IsNewRegion ? 'ccf-umi${resourceSuffix}' : CCF_UAMI_NAME
+-var dpEV2UamiName = IsNewRegion ? 'dp-aks-ccf-deployer${resourceSuffix}' : EV2_UAMI_NAME
++var ccfUamiName = CCF_UAMI_NAME
++var dpEV2UamiName = EV2_UAMI_NAME
+ 
+-var govKeyVaultName = IsNewRegion ? 'ccf-governor-kv-${LOCATION_SHORT_NAME}' : GOV_KV_NAME
+-var dsKeyVaultName = IsNewRegion ? 'ccf-datastore-kv-${LOCATION_SHORT_NAME}' : DS_KV_NAME
+-var ccfKeyVaultName = IsNewRegion ? 'ccf-kv-${LOCATION_SHORT_NAME}' : CCF_KV_NAME
++var govKeyVaultName = GOV_KV_NAME
++var dsKeyVaultName = DS_KV_NAME
++var ccfKeyVaultName = CCF_KV_NAME
+ 
+-// Ensure no "-" chars are in LOCATION_SHORT_NAME since it's not supported as storage account name
+-var storageLocationShortName = replace(LOCATION_SHORT_NAME, '-', '')
+-
+-var offlineBackupStorageName = IsNewRegion ? 'ccfbackupstorage${storageLocationShortName}' : OFFLINE_BACKUP_STORAGE_NAME
++var offlineBackupStorageName = OFFLINE_BACKUP_STORAGE_NAME
+ 
+ // Static variables
+ @description('Resource group name of the tenant shared DataPlane rg.')
+-var mainDataPlaneRG = ENVIRONMENT == 'staging' ? 'ConfidentialLedgerCommonRG' : 'ConfidentialLedgerRG'
++var mainDataPlaneRG = resourceGroup().name
+ 
+-@description('Resource group name of the tenant shared key vault.')
+-var sharedKeyVaultRG = 'TenantLevelSharedServices'
+ @description('Resource group of the tenant shared DataPlane DNS Zone')
+-var dnsZoneRG = 'ConfidentialLedgerCommonRG'
++var dnsZoneRG = resourceGroup().name
+ var externalDNSUamiName = 'external-dns-sp'
+ var codeUpgraderUamiName = 'codeupgrader-umi${resourceSuffix}'
+ var recoveryManagerUamiName = 'recovery-manager-umi${resourceSuffix}'
+@@ -78,27 +72,27 @@ var dpAKSName = 'ccf-aks${resourceSuffix}'
+ var aksMasterLogWorkspaceName = 'aks-master-logs'
+ var aksDiagName = 'ccf-aks-diag${resourceSuffix}'
+ var aksNodeResourceGroupName = 'MC_${resourceGroup().name}_${dpAKSName}_${LOCATION}'
+-var acrImportCustomRoleDefinitionID = (ENVIRONMENT == 'prod') ? '3d06fb13-3ac8-4a13-85f8-14ef686c9744' : (ENVIRONMENT == 'ppe') ? '35776c25-7379-4b4a-b296-329c7555bcb4' : '67cf3d65-b768-4298-a551-171a4e9357da'
+-
+-// Generate SSH Key Pair for Uploading to nodes - useful for advance debugging when needed
+-resource sshKeyGenScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
+-  name: 'sshKeyGenScript-${uniqueString(deployment().name)}'
+-  location: LOCATION
+-  kind: 'AzureCLI'
+-  properties: {
+-    azCliVersion: '2.52.0'
+-    timeout: 'PT15M'
+-    cleanupPreference: 'Always'
+-    retentionInterval: 'PT1H'
+-    scriptContent: '''
+-    ssh-keygen -f aksCluster -t rsa -C azureuser
+-    privateKey=$(cat aksCluster)
+-    publicKey=$(cat 'aksCluster.pub')
+-    json="{\"keyInfo\":{\"privateKey\":\"$privateKey\",\"publicKeys\":[{\"keyData\":\"$publicKey\"}]}}"
+-    echo "$json" > $AZ_SCRIPTS_OUTPUT_PATH
+-    '''
+-  }
+-}
++var acrImportCustomRoleDefinitionID = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
++
++// // Generate SSH Key Pair for Uploading to nodes - useful for advance debugging when needed
++// resource sshKeyGenScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
++//   name: 'sshKeyGenScript-${uniqueString(deployment().name)}'
++//   location: LOCATION
++//   kind: 'AzureCLI'
++//   properties: {
++//     azCliVersion: '2.52.0'
++//     timeout: 'PT15M'
++//     cleanupPreference: 'Always'
++//     retentionInterval: 'PT1H'
++//     scriptContent: '''
++//     ssh-keygen -f aksCluster -t rsa -C azureuser
++//     privateKey=$(cat aksCluster)
++//     publicKey=$(cat 'aksCluster.pub')
++//     json="{\"keyInfo\":{\"privateKey\":\"$privateKey\",\"publicKeys\":[{\"keyData\":\"$publicKey\"}]}}"
++//     echo "$json" > $AZ_SCRIPTS_OUTPUT_PATH
++//     '''
++//   }
++// }
+ 
+ // Create a VNET and subnet for the DataPlane AKS Cluster
+ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2021-05-01' = {
+@@ -172,12 +166,12 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-02-01' = {
+     dnsPrefix: dpAKSName
+     kubernetesVersion: K8S_VERSION
+     nodeResourceGroup: aksNodeResourceGroupName
+-    linuxProfile: {
+-      adminUsername: ADMIN_USERNAME
+-      ssh: {
+-        publicKeys: sshKeyGenScript.properties.outputs.keyInfo.publicKeys
+-      }
+-    }
++    // linuxProfile: {
++    //   adminUsername: ADMIN_USERNAME
++    //   ssh: {
++    //     publicKeys: sshKeyGenScript.properties.outputs.keyInfo.publicKeys
++    //   }
++    // }
+     disableLocalAccounts: true
+     podIdentityProfile:  {
+       enabled: true
+@@ -327,27 +321,6 @@ module assignAcrPullToAks 'Modules/acrpull-assignment.bicep' = {
+   }
+ }
+ 
+-// Copy the SSH Key Pair to the Tenant Level Shared Service Resource Group (!! Need KeyVault Access in Main Sub ACR!!)
+-module ssh_kv 'Modules/add-kv-secret.bicep' = {
+-  name: 'SSHPvtKeyKVImport'
+-  scope: resourceGroup(MAIN_SUBSCRIPTION, sharedKeyVaultRG)
+-  params: {
+-    keyVaultName: CCF_SHARED_KV
+-    SecretName: '${dpAKSName}-id-rsa'
+-    SecretValue: sshKeyGenScript.properties.outputs.keyinfo.privateKey
+-  }
+-}
+-
+-module sshpub_kv 'Modules/add-kv-secret.bicep' = {
+-  name: 'SSHPubKeyKVImport'
+-  scope: resourceGroup(MAIN_SUBSCRIPTION, sharedKeyVaultRG)
+-  params: {
+-    keyVaultName: CCF_SHARED_KV
+-    SecretName: '${dpAKSName}-id-rsa-pub'
+-    SecretValue: sshKeyGenScript.properties.outputs.keyinfo.publicKeys[0].keyData
+-  }
+-}
+-
+ // Enable Master logs - create it only if it's a full buildout
+ resource logAnalyticsCreator 'Microsoft.OperationalInsights/workspaces@2021-12-01-preview' = if (IsNewRegion) {
+   name: aksMasterLogWorkspaceName
+@@ -1188,20 +1161,6 @@ module CodeUpgraderMIOperatorRoleAssignment 'Modules/uami-roleassignment.bicep'
+   ]
+ }
+ 
+-// Update the Primary Cosmos DB Account with new location. This is required to enable data replication and multi-region read and write in that region.
+-// The userManagedIdentityResourceId used needs to have access to the CosmosDB resource, we use control-plane umi to perform the operation
+-var controlPlaneUMIName = (ENVIRONMENT == 'prod') ? 'controlplane-umi-prod-1' : (ENVIRONMENT == 'ppe') ?  'controlplane-umi-ppe-eus' : 'controlplane-umi-staging'
+-var existingCPUserManagedIdentityResourceId = '/subscriptions/${MAIN_SUBSCRIPTION}/resourcegroups/ACCLManagementRG/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${controlPlaneUMIName}'
+-module cosmosDb_locations_update 'Modules/cosmos-locations-update.bicep' = if (IsNewRegion) {
+-  name: 'cosmosdb_account_update'
+-  params: {
+-    cosmosDbAcountName: DP_PRIMARY_COSMOS_ACCOUNT_NAME
+-    cosmosDbResourceGroupName: mainDataPlaneRG
+-    locationToAdd: LOCATION
+-    userManagedIdentityResourceId: existingCPUserManagedIdentityResourceId
+-  }
+-}
+-
+ // Get the primary connection string for the Cosmos DB Account
+ var primaryConnectionString = listConnectionStrings(resourceId( MAIN_SUBSCRIPTION, mainDataPlaneRG, 'Microsoft.DocumentDb/databaseAccounts', DP_PRIMARY_COSMOS_ACCOUNT_NAME), '2023-03-15').connectionStrings[0].connectionString
+ 
+@@ -1219,7 +1178,6 @@ module cosmosConnString 'Modules/add-kv-secret.bicep' = if (IsNewRegion) {
+     SecretValue: '${newConnectionString}${LOCATION}' // connectionstring with readpreference=nearest inserted and location appended
+   }
+   dependsOn: [
+-    cosmosDb_locations_update
+     DataStoreKeyVault
+   ]
+ }
